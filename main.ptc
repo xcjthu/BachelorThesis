@@ -1,0 +1,67 @@
+\contentsline {chapter}{\numberline {第1章}研究背景}{1}{chapter.1}
+\contentsline {section}{\numberline {1.1}文档级关系抽取}{1}{section.1.1}
+\contentsline {section}{\numberline {1.2}预训练模型}{2}{section.1.2}
+\contentsline {section}{\numberline {1.3}面向关系抽取的预训练}{3}{section.1.3}
+\contentsline {chapter}{\numberline {第2章}相关工作}{6}{chapter.2}
+\contentsline {section}{\numberline {2.1}句子级别关系抽取}{6}{section.2.1}
+\contentsline {subsection}{\numberline {2.1.1}模式抽取模型}{6}{subsection.2.1.1}
+\contentsline {subsection}{\numberline {2.1.2}基于统计学习算法的抽取模型}{6}{subsection.2.1.2}
+\contentsline {subsection}{\numberline {2.1.3}神经网络关系抽取}{7}{subsection.2.1.3}
+\contentsline {subsection}{\numberline {2.1.4}远程监督关系抽取}{8}{subsection.2.1.4}
+\contentsline {section}{\numberline {2.2}文档级别关系抽取}{10}{section.2.2}
+\contentsline {subsection}{\numberline {2.2.1}文档级别关系抽取数据集}{10}{subsection.2.2.1}
+\contentsline {subsection}{\numberline {2.2.2}跨句关系抽取}{11}{subsection.2.2.2}
+\contentsline {subsection}{\numberline {2.2.3}文档级关系抽取}{12}{subsection.2.2.3}
+\contentsline {section}{\numberline {2.3}预训练模型}{12}{section.2.3}
+\contentsline {subsection}{\numberline {2.3.1}预训练语言模型}{12}{subsection.2.3.1}
+\contentsline {subsection}{\numberline {2.3.2}预训练关系表示学习}{13}{subsection.2.3.2}
+\contentsline {chapter}{\numberline {第3章}方法}{14}{chapter.3}
+\contentsline {section}{\numberline {3.1}相关符号}{14}{section.3.1}
+\contentsline {section}{\numberline {3.2}模型框架}{14}{section.3.2}
+\contentsline {section}{\numberline {3.3}实体和关系表示编码层}{15}{section.3.3}
+\contentsline {section}{\numberline {3.4}预训练任务}{16}{section.3.4}
+\contentsline {subsection}{\numberline {3.4.1}实体匹配}{17}{subsection.3.4.1}
+\contentsline {subsection}{\numberline {3.4.2}关系事实对齐}{18}{subsection.3.4.2}
+\contentsline {subsection}{\numberline {3.4.3}关系检测}{19}{subsection.3.4.3}
+\contentsline {section}{\numberline {3.5}降噪层}{20}{section.3.5}
+\contentsline {section}{\numberline {3.6}微调结构}{21}{section.3.6}
+\contentsline {chapter}{\numberline {第4章}实验}{22}{chapter.4}
+\contentsline {section}{\numberline {4.1}数据集及评价指标}{22}{section.4.1}
+\contentsline {section}{\numberline {4.2}基线模型}{23}{section.4.2}
+\contentsline {section}{\numberline {4.3}模型实现细节}{24}{section.4.3}
+\contentsline {section}{\numberline {4.4}实验结果}{25}{section.4.4}
+\contentsline {section}{\numberline {4.5}消融实验}{26}{section.4.5}
+\contentsline {chapter}{\numberline {第5章}结论与未来工作}{29}{chapter.5}
+\contentsline {chapter}{插图索引}{30}{section*.20}
+\contentsline {chapter}{表格索引}{31}{section*.22}
+\contentsline {chapter}{公式索引}{32}{section*.24}
+\contentsline {chapter}{参考文献}{33}{section*.26}
+\contentsline {chapter}{致\hspace {\ccwd }谢}{39}{section*.28}
+\contentsline {chapter}{声\hspace {\ccwd }明}{41}{section*.30}
+\contentsline {chapter}{\numberline {附录 A}外文资料的书面翻译}{43}{appendix.A}
+\ttl@change@i {\@ne }{section}{\z@ }{}{\contentspush {\thecontentslabel \hspace {\ccwd }}}{}{\thu@leaders \thecontentspage }\relax 
+\ttl@change@v {section}{}{}{}\relax 
+\ttl@change@i {\@ne }{subsection}{1\ccwd }{}{\contentspush {\thecontentslabel \hspace {\ccwd }}}{}{\thu@leaders \thecontentspage }\relax 
+\ttl@change@v {subsection}{}{}{}\relax 
+\ttl@change@i {\@ne }{subsubsection}{2\ccwd }{}{\contentspush {\thecontentslabel \hspace {\ccwd }}}{}{\thu@leaders \thecontentspage }\relax 
+\ttl@change@v {subsubsection}{}{}{}\relax 
+\ttl@starttoc {translation@1}
+\contentsline {section}{\numberline {A.1}开放关系抽取：从监督数据到无监督数据的关系知识迁移}{43}{section.A.1}
+\contentsline {subsection}{\numberline {A.1.1}引言}{43}{subsection.A.1.1}
+\contentsline {subsection}{\numberline {A.1.2}相关工作}{45}{subsection.A.1.2}
+\contentsline {subsection}{\numberline {A.1.3}方法}{45}{subsection.A.1.3}
+\contentsline {subsubsection}{\numberline {A.1.3.1}关系孪生网络（RSN）}{46}{subsubsection.A.1.3.1}
+\contentsline {subsubsection}{\numberline {A.1.3.2}半监督关系孪生网络（Semi-supervised RSN）}{47}{subsubsection.A.1.3.2}
+\contentsline {subsubsection}{\numberline {A.1.3.3}远程监督关系孪生网络（Distantly-supervised RSN）}{48}{subsubsection.A.1.3.3}
+\contentsline {subsubsection}{\numberline {A.1.3.4}开放关系聚类}{49}{subsubsection.A.1.3.4}
+\contentsline {subsection}{\numberline {A.1.4}实验分析}{50}{subsection.A.1.4}
+\contentsline {subsubsection}{\numberline {A.1.4.1}数据集}{50}{subsubsection.A.1.4.1}
+\contentsline {subsubsection}{\numberline {A.1.4.2}实现细节}{50}{subsubsection.A.1.4.2}
+\contentsline {subsubsection}{\numberline {A.1.4.3}开放关系抽取的实验结果}{51}{subsubsection.A.1.4.3}
+\contentsline {subsubsection}{\numberline {A.1.4.4}预定义关系的多样性对模型泛化能力的影响}{54}{subsubsection.A.1.4.4}
+\contentsline {subsubsection}{\numberline {A.1.4.5}关系表示可视化}{54}{subsubsection.A.1.4.5}
+\contentsline {subsection}{\numberline {A.1.5}结论及未来工作}{55}{subsection.A.1.5}
+\contentsline {section}{参考文献}{55}{section*.37}
+\ttl@stoptoc {translation@1}
+\contentsline {chapter}{在学期间参加课题的研究成果}{56}{section*.38}
+\contentsfinish 

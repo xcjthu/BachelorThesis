@@ -1,126 +1,195 @@
 % !TeX root = ../main.tex
 
-\chapter{图表公式例子}
-\label{cha:chapter02}
+\chapter{方法}
+\label{cha:model}
+在这一章节中，我将详细介绍本文提出的模型框架，主要包含如下的几个部分：该章节中涉及的有关符号；模型的总体框架；实体和关系编码层；针对于文档级别关系抽取提出的三个预训练任务，包括实体匹配、关系事实对齐、关系检测；模型中的降噪层以及在精标数据上进行微调的模型结构。
 
-\section{其它例子}
-\label{sec:other}
 
-在第~\ref{cha:intro} 章中我们学习了贝叶斯公式~(\ref{equ:chap1:bayes})，这里我们复
-习一下：
+
+\section{相关符号}
+在详细介绍模型框架之前，本小节首先介绍在本章中会用到的各种相关符号。用 $d$ 表示输入的文章，其中每篇文章由单词序列组成 $d = \{\omega_1, ..., \omega_n\}$，其中 $n$ 为单词数量，需要指出的是，在这里的单词指Bert模型输入的subword，而不是通常意义下的单词。此外，文章中包含的实体集合，本文记做 $V = \{e_1, ..., e_{|V|}\}$。通常情况下，一个实体在一篇文章中会出现多次，我将在文章 $d$ 中的实体 $e_i$ 对应的出现的多次实体提及标记为 $\{m_{i,1}, ..., m_{i, l_i}\}$ 其中 $l_i$ 表示实体 $e_i$ 在文章中被提及的次数。
+
+头实体 $e_i$ ，尾实体 $e_j$ 以及两个实体之间的关系 $r_{i, j}$ 组成的三元组 $(e_i, e_j, r_{e_i, e_j})$ 称作一个关系事实。若实体 $e_i$ 和实体 $e_j$ 均出现在文章 $d$ 中，那么称三元组 $(e_i, e_j, d)$ 为一个关系样例。若实体 $e_i$ 和 $e_j$ 存在某种关系，文章 $d$ 中阐述了这种关系，那么该样例为正样例。相反，若 $e_i$ 和 $e_j$ 不存在关系，或该关系未在文章 $d$ 中被阐述，那么称该样例为一个负样例。例如，\\
+\texttt{A: iPhone is designed by Apple Inc.\\
+B: I looked up Apple Inc. on my iPhone.
+}
+那么 (\texttt{Apple Inc.}, \texttt{iPhone}, \textit{product}) 是一个关系事实，(\texttt{Apple Inc.}, \texttt{iPhone}, \texttt{A}) 和 (\texttt{Apple Inc.}, \texttt{iPhone}, \texttt{B}) 为关系样例，而前者为正样例，后者为负样例。
+
+
+\section{模型框架}
+
+\begin{figure}
+	\centering
+	\includegraphics[width = \linewidth]{figures/model/tasks}
+	\caption{模型框架图，上半部分展示了三个预训练任务的细节，下半部分包含了模型流程和编码器示意图。}
+	\label{framework}
+\end{figure}
+
+接下来，我将详细介绍本文提出的模型的各个细节。图~\ref{framework}展示了模型的流程及细节。首先，本文使用降噪模块来筛除数据集文档中包含的大量的负样例，以达到平衡数据的目的，同时也避免过度的标签不平衡影响模型的训练。在降噪模块中，我使用了模型首先对所有的实体对进行打分，接着将一篇文档内部的实体对按照分数进行排序，保留每一篇文章中分数最高的一部分数据用于预训练、微调模型、测试模型。紧接着，本文提出了三个预训练任务来预训练文本编码器，预训练在远程监督数据上进行。最后，在手工标注数据上进行模型微调。
+
+%\section{文本编码层}
+%\begin{figure}
+%\centering
+%	\includegraphics[width = 0.5\linewidth]{figures/model/transformer}
+%	\caption{文本编码器示意图}
+%	\label{text-encoder}
+%\end{figure}
+
+%文本编码器是BERT模型，该模型为一个 $N$ 层的双向Transformer模型。在每一层的Transformer中，模型都包含了两层，一层是多头自注意力层，一层是全连接网络层。正如图\ref{text-encoder}中所示。
+
+%\smallskip
+%\noindent
+%\textbf{多头自注意力机制}
+
+
+\section{实体和关系表示编码层}
+
+在本小节中，我将介绍本文提出的模型在输入文档之后，是如何获取实体表示、关系表示的。本文使用BERT作为本文模型编码器的基础。给定一篇文档 $d$，和其中的实体 $V = \{e_1, ..., e_{|V|}\}$，以及每一个实体对应的各个提及 $e_i = \{m_{i,1}, ..., m_{i, l_i}\}$，本模块的目标是根据文档内容，产生每个实体提及、每个实体、每个关系样例对应的表示。为了将文档中实体对应的单词及普通单词区分开，并且将指代信息融入到模型当中，本文跟随\citet{soares2019matching}中的设定，为每一个实体 $e_i$ 引入实体标记。其中每个实体 $e_i$ 对应的实体标记包含两个部分，一个是实体开始标记 $[E_{start}^i]$，一个是实体结束标记 $[E_{end}^i]$。实体开始标记 $[E_{start}^i]$ 被插入在实体 $e_i$ 对应的每一个提及的开头，而实体结束标记 $[E_{end}^i]$ 则被插入在实体 $e_i$ 对应的每一个提及的结尾。例如，对于包含有 \emph{iPhone} 和 \emph{Apple Inc.}两个实体的句子：
+
+\texttt{iPhone is designed by Apple Inc.}
+
+在插入实体标记后，则该句子被修改为：
+
+\texttt{$[E_{start}^1]$ iPhone $[E_{end}^1]$ is designed by $[E_{start}^2]$ Apple Inc. $[E_{end}^2]$} 
+
+在文档中将实体标记插入后，将被改变的文档记做 $\hat{\mathcal{d}}$。紧接着，利用BERT编码器，编码文档，将文档转换成隐向量序列 $\mathbf{H} = \{\mathbf{h}_1,...,\mathbf{h}_{|\hat{\mathcal{d}}|}\}$：
 \begin{equation}
-\label{equ:chap2:bayes}
-p(y|\vx) = \frac{p(\vx,y)}{p(\vx)}=
-\frac{p(\vx|y)p(y)}{p(\vx)}
+	\mathbf{H} = \text{BERT}(\hat{\mathcal{d}})
 \end{equation}
 
-\subsection{绘图}
-\label{sec:draw}
+将每个提及对应的实体开始标记的隐向量作为该实体提及的表示。
+\begin{equation}
+	\mathbf{m}_{i,j} = \mathbf{h}_{[E_{start}]_{m_{i,j}}}
+\end{equation}
 
-本模板不再预先装载任何绘图包（如 \pkg{pstricks，pgf} 等），完全由用户来决定。
-个人觉得 \pkg{pgf} 不错，不依赖于 Postscript。此外还有很多针对 \LaTeX{} 的
- GUI 作图工具，如 XFig(jFig), WinFig, Tpx, Ipe, Dia, Inkscape, LaTeXPiX,
-jPicEdt, jaxdraw 等等。
+紧接着，为了获取实体 $e_i$ 的表示，利用一个最大池化层，将实体 $e_i$ 对应的所有的提及的表示融合在一起：
+\begin{equation}
+	\mathbf{e}_i = \text{MaxPooling}\left(\{\mathbf{m}_{i,j}\}_{j=1}^{l_i}\right)
+\end{equation}
 
-\subsection{插图}
-\label{sec:graphs}
+获得了一个文档中所有实体的表示之后，利用实体表示计算出每一个关系样例对应的表示。具体而言，对于给定实体对 $(e_i, e_j)$ 来说，通过上述计算，获取了该实体对头实体和尾实体的表示 $\mathbf{e}_i$ 和 $\mathbf{e}_j$，利用双线性层将两个实体的表示映射到关系表示空间去。即：
+\begin{equation}
+	\mathbf{r}_{i,j} = \text{Bilinear}_{enc}(\mathbf{e}_i, \mathbf{e}_j)
+\end{equation}
 
-强烈推荐《\LaTeXe{} 插图指南》！关于子图形的使用细节请参看 \pkg{subcaption} 宏包的说明文档。
+其中，$\text{Bilinear}_{enc}$ 表示编码器中的双线性层。$\mathbf{r}_{i,j} \in \mathbb{R}^{d_r}$，$d_r$ 是关系向量的维度，是一个超参数，在章节~\ref{cha:experiment}中讲述了该超参数的具体设置。
 
-\subsubsection{一个图形}
-\label{sec:onefig}
-一般图形都是处在浮动环境中。之所以称为浮动是指最终排版效果图形的位置不一定与源文
-件中的位置对应\footnote{This is not a bug, but a feature of \LaTeX!}，这也是刚使
-用 \LaTeX{} 同学可能遇到的问题。如果要强制固定浮动图形的位置，请使用 \pkg{float} 宏包，
-它提供了 \texttt{[H]} 参数，比如图~\ref{fig:xfig1}。
-\begin{figure}[H] % use float package if you want it here
-  \centering
-  \includegraphics{thu-whole-logo.pdf}
-  \caption{利用 Xfig 制图}
-  \label{fig:xfig1}
-\end{figure}
+\hspace*{\fill}
 
-大学之道，在明明德，在亲民，在止于至善。知止而后有定；定而后能静；静而后能安；安
-而后能虑；虑而后能得。物有本末，事有终始。知所先后，则近道矣。古之欲明明德于天
-下者，先治其国；欲治其国者，先齐其家；欲齐其家者，先修其身；欲修其身者，先正其心；
-欲正其心者，先诚其意；欲诚其意者，先致其知；致知在格物。物格而后知至；知至而后
-意诚；意诚而后心正；心正而后身 修；身修而后家齐；家齐而后国治；国治而后天下
-平。自天子以至于庶人，壹是皆以修身为本。其本乱而未治者 否矣。其所厚者薄，而其所
-薄者厚，未之有也！
-
-\hfill —— 《大学》
+在本节中，介绍了如何将一篇文档编码成实体向量、关系向量。引入实体标记来帮助模型引入指代信息，利用最大池化层、双线性层来一步一步获取实体表示、关系表示。图~\ref{framework}中详细展现了编码器的结构。
 
 
-\subsubsection{多个图形}
-\label{sec:multifig}
+\section{预训练任务}
+为了能够充分利用大规模的远程监督数据，本文提出三个预训练任务。通过在大规模远程监督数据上进行预训练，来充分挖掘远程监督数据中的信息。三个预训练任务分别为：实体匹配、关系事实对齐、关系检测。分别囊括了实体提及、实体、关系三个级别的信息。实体匹配任务能够帮助模型学会从上下文中寻找有用的信息，编码至实体提及/实体的表示当中。关系事实对齐帮助模型从实体表示中产生好的关系表示。关系检测任务则能够帮助模型区分文档中的正样例和负样例。三个预训练任务很好地预训练了模型，挖掘了远程监督数据上的信息。
 
-如果多个图形相互独立，并不共用一个图形计数器，那么
-用 \texttt{minipage} 或者\texttt{parbox} 就可以。否则，请参看
-图~\ref{fig:big1-subcaptionbox}，它包含两个小图，分别是图~\ref{fig:subfig1}和
-图~\ref{fig:subfig2}。推荐使用 \cs{subcaptionbox}，因为可以像
-图~\ref{fig:big1-subcaptionbox} 那样对齐子图的标题，也可以使用 \pkg{subcaption}
-宏包的 \cs{subcaption}（放在 minipage中，用法同\cs{caption}）或
-是 \pkg{subfigure} 、\pkg{subtable}环境，像图~\ref{fig:big1-subfigure}，不要再
-用 \cs{subfloat}、\cs{subfigure} 和 \cs{subtable}。
 
-\begin{figure}[h]
-  \centering%
-  \subcaptionbox{第一个小图形\label{fig:subfig1}}[3cm] %标题的长度，超过则会换行，如下一个小图。
-    {\includegraphics[height=3cm]{thu-fig-logo.pdf}}%
-  \hspace{4em}%
-  \subcaptionbox{第二个小图形，注意这个图略矮些。如果标题很长的话，它会自动换行\label{fig:subfig2}}
-      {\includegraphics[height=2cm]{thu-text-logo.pdf}}
-  \caption{包含子图形的大图形(subcaptionbox示例)}
-  \label{fig:big1-subcaptionbox}
-\end{figure}
-\begin{figure}[h]
-  \centering%
-  \begin{subfigure}{3cm}
-    \includegraphics[height=3cm]{thu-fig-logo.pdf}
-    \caption{第一个小图形}
-  \end{subfigure}%
-  \hspace{4em}%
-  \begin{subfigure}{0.5\textwidth}
-    \includegraphics[height=2cm]{thu-text-logo.pdf}
-    \caption{第二个小图形，注意这个图略矮些。subfigure中同一行的子图在顶端对齐。}
-  \end{subfigure}
-  \caption{包含子图形的大图形(subfigure示例)}
-  \label{fig:big1-subfigure}
-\end{figure}
+\subsection{实体匹配}
+实体提及和实体的表示在计算关系表示时扮演了极其重要的作用。因此，为了能够帮助模型学习一个好的实体表示，本文提出了这个实体级别的任务。这个任务可以分成文档内和跨文档两个部分的子任务，两个任务具有相同的形式，但功能上不尽相同。接下来，本小节将分两部分介绍这个任务。
 
-古之学者必有师。师者，所以传道受业解惑也。人非生而知之者，孰能无惑？惑而不从师，
-其为惑也，终不解矣。生乎吾前，其闻道也固先乎吾，吾从而师之；生乎吾後，其闻道也亦
-先乎吾，吾从而师之。吾师道也，夫庸知其年之先後生於吾乎！是故无贵无贱无长无少，道
-之所存，师之所存也。
+\smallskip
+\noindent
+\textbf{文档内实体匹配。} 文档内实体匹配子任务要求模型具有类似于指代消解的能力，能够将同一个实体在文档中不同的提及相互串联起来，从而能够充分利用上下文产生实体提及以及实体的表示。一个实体在文档中将出现非常多次，而不同的句子将提供不同的信息，不同信息相互补充构成了实体的全貌。在这个子任务中，要求模型能够辨认一个实体提及属于该文档中哪一个实体。形式化而言，首先从文档 $\mathcal{D}$ 中随机挑选一个实体 $e_i = \{m_{i,j}\}_{j=1}^{l_i}$，并且从该实体多个提及中随机挑选一个 $m_{i,p}$，在计算表示时将 $m_{i,p}$ 从 $e_i$ 中剔除，即 $e_i = \{m_{i,j}\}_{j=1, j \neq p}^{l_i}$。并利用与 $e_i$ 不同的实体标记来标记 $m_{i,j}$。利用编码器分别获得 $e_i$ 和 $m_{i, p}$ 的表示。
+\begin{equation}
+	\mathbf{m}_{i, j} = \text{Encoder}(\mathcal{\hat{D}}), j = 1,...,l_i
+\end{equation}
 
-嗟乎！师道之不传也久矣，欲人之无惑也难矣。古之圣人，其出人也远矣，犹且从师而问焉；
-今之众人，其下圣人也亦远矣，而耻学於师。是故圣益圣，愚益愚。圣人之所以为圣，愚
-人之所以为愚，其皆出於此乎？爱其子，择师而教之，於其身也，则耻师焉，惑焉。彼童子
-之师，授之书而习其句读者，非吾所谓传其道、解其惑者也。句读之不知，惑之不解，或师
-焉，或不焉，小学而大遗，吾未见其明也。巫医、乐师、百工之人不耻相师，  士大夫之族
-曰“师”曰“弟子”之云者，则群聚而笑之。问之，则曰：彼与彼年相若也，道相似也，位
-卑则足羞，官盛则近谀。呜呼！师道之不复，可知矣。巫医、乐师、百工之人。吾子不齿，
-今其智乃反不能及，其可怪也欤！圣人无常师。孔子师郯子、苌子、师襄、老聃。郯子之徒，
-其贤不及孔子。孔子曰：“三人行，必有我师。”是故弟子不必不如师，师不必贤於弟子。
-闻道有先後，术业有专攻，如是而已。
+并且，$e_i$ 的表示与其他实体表示有所不同，$e_i$的表示的计算需要筛除 $m_{i,p}$，同样利用最大池化层获取实体 $e_i$ 的表示。
+\begin{equation}
+	\mathbf{e}_i = \text{MaxPooling}(\mathbf{m}_{i,j}), j = 1,...,p-1,p+1,...,l_i
+\end{equation}
 
-如果要把编号的两个图形并排，那么小页就非常有用了：
-\begin{figure}
-\begin{minipage}{0.48\textwidth}
-  \centering
-  \includegraphics[height=2cm]{thu-whole-logo.pdf}
-  \caption{并排第一个图}
-  \label{fig:parallel1}
-\end{minipage}\hfill
-\begin{minipage}{0.48\textwidth}
-  \centering
-  \includegraphics[height=2cm]{thu-whole-logo.pdf}
-  \caption{并排第二个图}
-  \label{fig:parallel2}
-\end{minipage}
-\end{figure}
+同时，为了更好地训练，我也进行了负采样，从文本中随机挑选出其余的实体，和实体 $e_i$，组成实体序列 $\{e_{n_q}\}_{q=1}^{k_m}$，其中 $k_m$ 是实体序列的长度。紧接着，计算提及 $m_{i,j}$ 的表示与实体表示的相似分数：
+\begin{equation}
+	s_m(\mathbf{e}_{n_q}, \mathbf{m}_{i,j}) = \text{Bilinear}_M(\mathbf{e}_{n_q}, \mathbf{m}_{i,j})
+\end{equation}
+并利用 Softmax 函数来计算提及 $m_{i,j}$ 属于实体 $e_{n_q}$ 的概率：
+\begin{equation}
+	P(e_{n_q}|m_{i,j}) = \frac{\text{exp}(s_m(\mathbf{e}_{n_q}, \mathbf{m}_{i,j}))}{\sum_{t=1}^{k_m}\text{exp}(s_m(\mathbf{e}_{n_t}, m_{i,j}))}
+	\label{loss:m:intra}
+\end{equation}
 
-李氏子蟠，年十七，好古文、六艺，经传皆通习之，不拘於时，学於余。余嘉其能行古
-道，作师说以贻之。
+\hspace*{\fill}
 
-\hfill —— 韩愈（唐）
+\smallskip
+\noindent
+\textbf{文档间实体匹配。} 文档内部的实体匹配能够帮助模型学会将不同的实体提及串联起来。设计文档间实体匹配任务可以帮助模型学会挑选信息，从而生成好的实体表示。一个文章包含有非常多的句子，实体夹杂在其中，学习好的实体表示就需要模型能够挑选出与该实体有关的上下文，并将这些上下文的信息融入到实体表示当中去。本文认为，一个实体出现在不同的文章当中，不同的文章之间会有信息重合，而这部分重合的信息就是对于实体有用的信息。因此，跨文档的实体匹配就能够帮助模型更好地挑选出与实体有关的信息。
+
+具体而言，假定文章 $d_A$ 和文章 $d_B$ 中包含有相同的实体，给定文档 $d_A$ 中实体序列及它们的表示 $\{\mathbf{e}_A^i\}_{i=1}^{k_e}$，以及文档 $d_B$ 出现的实体及其表示 $e_B^q$，要求该实体在文档 $d_A$ 也被提及了。接着，与文档内实体匹配子任务类似，首先计算实体之间的相似度分数：
+\begin{equation}
+	s_{m}^{c}(\mathbf{e}_A^i, \mathbf{e}_B^q) = \text{Bilinear}_M(\mathbf{e}_A^i, \mathbf{e}_B^q)
+\end{equation}
+其中，$\text{Bilinear}$ 是与文档内子任务共享的双线性层。接着，利用 Softmax 函数来计算 $e_A^i$ 和 $e_B^q$ 指的是同一个实体的概率：
+\begin{equation}
+	P(e_A^i | e_B^q) = \frac{\text{exp}(s_m^c(\mathbf{e}_A^i, \mathbf{e}_B^q))}{\sum_{t=1}\text{exp}(s_m^c(\mathbf{e}_A^t, \mathbf{e}_B^q))}
+	\label{loss:m:inter}
+\end{equation}
+
+\hspace*{\fill}
+
+最后，公式~\ref{loss:m:intra}和公式~\ref{loss:m:inter}被用来计算交叉熵损失函数，得到实体匹配任务的损失函数为 $\mathcal{L}_M$。
+
+
+
+\subsection{关系事实对齐}
+为了能够帮助模型根据上下文内容产生有效的关系表示，设置了这个任务。这个任务可以帮助模型学会让相似的关系事实表示相近，不相似关系事实表示相互原理。受\citet{soares2019matching}的启发，相同的关系事实，在不同的文章当中出现，它们的表示应该是相近的。换句话说，两个关系事实，它们包含有完全相同的头尾实体，但是这两个关系事实出现在不同的文章当中，那么这两个关系事实的表示向量相似分数应该比较高。
+
+具体来说，从训练集中挑选出两篇包含有相同关系事实的文档 $d_A$ 和 $d_B$。给定文档 $d_A$ 中的关系的表示序列 $\{\mathbf{r}_A^i\}_{i=1}^{k_s}$，以及文档 $d_B$ 中的关系表示 $\mathbf{r}_B^q$，该关系事实在文档 $d_A$ 中也出现了。首先计算关系之间的相似度分数：
+\begin{equation}
+	s_s(\mathbf{r}_A^i, \mathbf{r}_B^q) = \mathbf{w}_s\left|\mathbf{r}_A^i - \mathbf{r}_B^q\right| + b_s
+\end{equation}
+其中，$\mathbf{w}_s \in \mathbb{R}^{d_r \times 1}$ 是权重，$b \in \mathbb{R}$ 是偏差。$\left|\cdot\right|$表示将两个向量按位相减，并取绝对值。当相似度分数越高，则两个关系表示代表的关系事实也就越相似。紧接着，计算两个关系表示 $\mathbf{r}_A^i$ 和 $\mathbf{r}_B^q$ 表示同一个关系事实的概率为：
+\begin{equation}
+	P(\mathbf{r}_A^i | \mathbf{r}_B^q) = \frac{\text{exp}(s_s(\mathbf{r}_A^i, \mathbf{r}_B^q))}{\sum_{i=1}^{k_s}\text{exp}(s_s(\mathbf{r}_A^i, \mathbf{r}_B^q))}
+	\label{loss:s}
+\end{equation}
+
+利用公式~\ref{loss:s}计算关系事实对齐的交叉熵损失函数 $\mathcal{L}_S$。
+
+
+\subsection{关系检测}
+在文档级关系抽取中，一篇文档中的大多数实体对之间都是没有关系的。根据在一个大规模的手工标注的文档级别关系抽取数据集中的统计结果，有超过 $96.8\%$ 的实体对都是没有关系的\cite{yao2019docred}。也就是说，文档级关系抽取中，负样例的数量要远远超过正样例的数量，这是无法避免的一个问题。因此，本文提出了这样一个任务，该任务需要模型从抽样出来的关系样例中，找出正样例。这个任务可以很好地帮助模型区分哪些是正样例哪些是负样例。
+
+具体而言，随机采样出一系列关系表示 $\{\mathbf{r}_n^i\}_{i=1}^{k_n}$，其中 $k_n$ 是采样出来的关系表示的数量，是一个可以调节的超参数。在这些关系表示中，只有一个关系表示代表的是正样例。接着，计算关系表示的正分数，该分数越高，表示该关系表示越有可能成为正样例：
+\begin{equation}
+	s_n(\mathbf{r}_n^i) = \mathbf{w}_n\mathbf{r}_n^i + b_n
+	\label{positive_score}
+\end{equation}
+其中，$\mathbf{w}_n \in \mathbb{R}^{d_r \times 1}$ 为权重，$b_n \in \mathbb{R}$ 是偏差。根据该分数，计算每个关系事实属于正样例的关系事实的概率为：
+\begin{equation}
+	P(\mathbf{r}_n^i) = \frac{\text{exp}(s_n(\mathbf{r}_n^i))}{\sum_{j = 1}^{k_n}\text{exp}(s_n(\mathbf{r}_n^j))}
+	\label{loss:n}
+\end{equation}
+与之前的实体匹配任务类似，该任务同样也可以分成文档内子任务和跨文档子任务。这两个子任务计算方式相同，区别在于采样的方式。在文档内子任务中，所有的关系都是从单篇文档中采样得到；相反，在跨文档子任务中，关系是从两篇不同的文档中采样得到。接着利用公式~\ref{loss:n}计算关系检测任务的交叉熵损失函数 $\mathcal{L}_N$。
+
+\hspace*{\fill}
+
+最后，整个框架的损失函数为上述三个任务损失函数的总和。
+\begin{equation}
+	\mathcal{L} = \mathcal{L}_M + \mathcal{L}_S + \mathcal{L}_N
+\end{equation}
+
+值得一提的是，上述的损失函数可以被一个好的实体链接系统给最小化。这样就会导致模型只能够将不同文档及相同文档中的实体链接起来，而无法真正理解文档的语义。这偏离了训练模型的目标。因此为了避免这个问题，受\citet{soares2019matching}启发，在读入数据时引入一个特殊的实体标识符号 $[BLANK]$。给定某篇文档内的一个实体，以概率 $\alpha$，将该实体的所有提及替换成这个特殊的字符 $[BLANK]$。这也就使得模型无法根据实体的名字来产生实体表示、关系表示，而必须根据上下文来生成表示。在这种情况下，模型才能够有效地捕捉到文档中与关系有关的信息。
+
+
+\section{降噪层}
+正如前文所说，在文档级别关系抽取中，一篇文档中大部分实体对都是没有关系的，这也导致了数据的标签极度不平衡。同时，远程监督机制无可避免地会引入错误标注数据，尤其在文档级别，错误标注的数量要比句子级别更加严重，甚至于是数倍之多。之前也有一些工作关注到了噪音问题，\citet{peng2017cross}和\citet{quirk2017distant}在利用远程监督数据做跨句的关系抽取时，发现当句子数量超过 $3$ 时，模型训练过程就会因为噪音过多而效果变差，因此这两个工作在构造数据集时，便将语料限定在连续的三个句子之内，这种方式显然无法运用到文档级别关系抽取当中。\citet{wang2019fine}关注到过多的无关系数据，给模型带来了非常严重的标签不均衡问题，该工作提出两步法判断法，第一步判断实体对是否有关系，第二步判断具体的关系。该方法在判断实体对是否有关系时准确率较差，因此也无法避免标签不均衡问题。
+
+在本文中，提出一种新的降噪框架。相比于直接判断实体对是否有关系，本文的降噪层通过对实体对进行打分，再利用分数对一篇文档内的实体对进行排序，并取分数最高的 $k_d$ 个实体对，运用到后续的预训练、微调、测试当中。该层采用前文提到的关系检测任务进行训练，利用有标注的训练集训练该降噪模型，分数计算方式如前文公式~\ref{positive_score}阐述的那样。之后，对于每一篇文章都要对所有的实体对进行打分，分数最高的 $k_d$ 个实体对才被认为是有可能有关系的，进入到后续的过程。
+
+
+
+\section{微调结构}
+在预训练完成之后，需要对预训练好的模型进行微调，才能够被最终运用到文档级关系抽取中去。本节将介绍预训练模型在有标注数据集上的微调的结构。在微调时，将把预训练好的BERT模型和其后续的双线性层一同加载进来。注意在微调时，不再使用 $[BLANK]$ 符号。跟随\citet{yao2019docred}的设置，将文档级关系抽取任务建模成多标签分类问题。给定关系表示后，利用一个线性层计算每个关系的概率：
+\begin{equation}
+	P(r|\mathbf{r}) = \sigma(\mathbf{w}_r\mathbf{r} + b_r)
+\end{equation}
+其中，$r$ 是某种关系类型，$\mathbf{w}_r \in \mathbb{R}^{d_r \times 1}$ 和 $b_r \in \mathbb{R}$ 表示该关系类型对应的权重和偏差，$\sigma$ 表示sigmoid函数。紧接着，利用该概率计算对应的二分类交叉熵损失函数，并将所有的关系类型对应的交叉熵损失相加得到微调时的损失函数。
+
+
+\hspace*{\fill}
+
+在本章中，介绍了模型的具体细节，包括文档编码层，三个预训练任务，降噪层以及微调结构。下面一章将介绍实验部分，在实验中验证了各个部分的能力。
+
+
+
+
