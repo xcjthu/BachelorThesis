@@ -4,6 +4,8 @@ package-lock.json
 node_modules/
 dist/
 
+README.md
+
 ## generated files:
 dtx-style.sty
 thuthesis.cls
